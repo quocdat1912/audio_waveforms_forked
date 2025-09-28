@@ -376,7 +376,11 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
   /// calculates seek progress
   void _updatePlayerPercent() {
     if (playerController.maxDuration == 0) return;
-    _audioProgress = _seekProgress.value / playerController.maxDuration;
+        if (_seekProgress.value == playerController.maxDuration) {
+      _audioProgress = 0;
+    } else {
+      _audioProgress = _seekProgress.value / playerController.maxDuration;
+    }
   }
 
   ///This will handle pushing back the wave when it reaches to middle/end of the
