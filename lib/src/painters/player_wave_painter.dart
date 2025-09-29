@@ -4,7 +4,6 @@ import '../../audio_waveforms.dart';
 
 class PlayerWavePainter extends CustomPainter {
   final List<double> waveformData;
-  final double animValue;
   final Offset totalBackDistance;
   final Offset dragOffset;
   final double audioProgress;
@@ -18,7 +17,6 @@ class PlayerWavePainter extends CustomPainter {
 
   PlayerWavePainter({
     required this.waveformData,
-    required this.animValue,
     required this.dragOffset,
     required this.totalBackDistance,
     required this.audioProgress,
@@ -79,15 +77,10 @@ class PlayerWavePainter extends CustomPainter {
     for (int i = 0; i < length; i++) {
       final currentDragPointer = dragOffset.dx - totalBackDistance.dx;
       final waveWidth = i * playerWaveStyle.spacing;
-      final dx = waveWidth +
-          currentDragPointer +
-          emptySpace +
-          (waveformType.isFitWidth ? 0 : halfWidth);
-      final waveHeight = (waveformData[i] * animValue) *
-          playerWaveStyle.scaleFactor *
-          scrollScale;
-      final bottomDy =
-          halfHeight + (playerWaveStyle.showBottom ? waveHeight : 0);
+      final dx =
+          waveWidth + currentDragPointer + emptySpace + (waveformType.isFitWidth ? 0 : halfWidth);
+      final waveHeight = waveformData[i] * playerWaveStyle.scaleFactor * scrollScale;
+      final bottomDy = halfHeight + (playerWaveStyle.showBottom ? waveHeight : 0);
       final topDy = halfHeight + (playerWaveStyle.showTop ? -waveHeight : 0);
 
       // Only draw waves which are in visible viewport.

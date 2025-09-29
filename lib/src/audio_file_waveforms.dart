@@ -46,11 +46,11 @@ class AudioFileWaveforms extends StatefulWidget {
   /// If decoration is used then use color in it.
   final Color? backgroundColor;
 
-  /// Duration for animation. Defaults to 500 milliseconds.
-  final Duration animationDuration;
+  // /// Duration for animation. Defaults to 500 milliseconds.
+  // final Duration animationDuration;
 
-  /// Curve for animation. Defaults to Curves.easeIn
-  final Curve animationCurve;
+  // /// Curve for animation. Defaults to Curves.easeIn
+  // final Curve animationCurve;
 
   /// A clipping behaviour which is applied to container having waveforms.
   final Clip clipBehavior;
@@ -82,6 +82,9 @@ class AudioFileWaveforms extends StatefulWidget {
   ///
   /// With seeking gesture enabled, playing audio can be seeked to
   /// any position using gestures.
+
+  final int initDuration;
+
   const AudioFileWaveforms({
     super.key,
     required this.size,
@@ -93,8 +96,6 @@ class AudioFileWaveforms extends StatefulWidget {
     this.margin,
     this.decoration,
     this.backgroundColor,
-    this.animationDuration = const Duration(milliseconds: 500),
-    this.animationCurve = Curves.easeIn,
     this.clipBehavior = Clip.none,
     this.waveformType = WaveformType.long,
     this.enableSeekGesture = true,
@@ -102,18 +103,14 @@ class AudioFileWaveforms extends StatefulWidget {
     this.onDragEnd,
     this.dragUpdateDetails,
     this.tapUpUpdateDetails,
+    this.initDuration = 0,
   });
 
   @override
   State<AudioFileWaveforms> createState() => _AudioFileWaveformsState();
 }
 
-class _AudioFileWaveformsState extends State<AudioFileWaveforms>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _growingWaveController;
-  late Animation<double> _growAnimation;
-
-  double _growAnimationProgress = 0.0;
+class _AudioFileWaveformsState extends State<AudioFileWaveforms> {
   final ValueNotifier<int> _seekProgress = ValueNotifier(0);
   bool showSeekLine = false;
 
@@ -121,8 +118,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
   late EdgeInsets? padding;
   late BoxDecoration? decoration;
   late Color? backgroundColor;
-  late Duration? animationDuration;
-  late Curve? animationCurve;
   late Clip? clipBehavior;
   late StreamSubscription<int> onCurrentDurationSubscription;
   late StreamSubscription<void> onCompletionSubscription;
@@ -130,8 +125,7 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
 
   double get spacing => widget.playerWaveStyle.spacing;
 
-  double get totalWaveWidth =>
-      widget.playerWaveStyle.spacing * _waveformData.length;
+  double get totalWaveWidth => widget.playerWaveStyle.spacing * _waveformData.length;
 
   PlayerWaveStyle get playerWaveStyle => widget.playerWaveStyle;
 
@@ -141,20 +135,8 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
   void initState() {
     super.initState();
     _initialiseVariables();
-    _growingWaveController = AnimationController(
-      vsync: this,
-      duration: widget.animationDuration,
-    );
-    _growAnimation = CurvedAnimation(
-      parent: _growingWaveController,
-      curve: widget.animationCurve,
-    );
-
-    _growingWaveController
-      ..forward()
-      ..addListener(_updateGrowAnimationProgress);
-    onCurrentDurationSubscription =
-        playerController.onCurrentDurationChanged.listen((event) {
+    _initProgress();
+    onCurrentDurationSubscription = playerController.onCurrentDurationChanged.listen((event) {
       _seekProgress.value = event;
       _updatePlayerPercent();
     });
@@ -172,9 +154,8 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
       if (!widget.continuousWaveform) {
         playerController.addListener(_addWaveformDataFromController);
       } else {
-        onCurrentExtractedWaveformData = playerController
-            .onCurrentExtractedWaveformData
-            .listen(_addWaveformData);
+        onCurrentExtractedWaveformData =
+            playerController.onCurrentExtractedWaveformData.listen(_addWaveformData);
       }
     }
   }
@@ -185,7 +166,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     onCurrentExtractedWaveformData?.cancel();
     onCompletionSubscription.cancel();
     playerController.removeListener(_addWaveformDataFromController);
-    _growingWaveController.dispose();
     super.dispose();
   }
 
@@ -212,11 +192,9 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
       decoration: widget.decoration,
       clipBehavior: widget.clipBehavior,
       child: GestureDetector(
-        onHorizontalDragUpdate:
-            widget.enableSeekGesture ? _handleDragGestures : null,
+        onHorizontalDragUpdate: widget.enableSeekGesture ? _handleDragGestures : null,
         onTapUp: widget.enableSeekGesture ? _handleScrubberSeekStart : null,
-        onHorizontalDragStart:
-            widget.enableSeekGesture ? _handleHorizontalDragStart : null,
+        onHorizontalDragStart: widget.enableSeekGesture ? _handleHorizontalDragStart : null,
         onHorizontalDragEnd: widget.enableSeekGesture ? _handleOnDragEnd : null,
         child: ClipPath(
           // TODO: Update extraClipperHeight when duration labels are added
@@ -229,7 +207,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
                   painter: PlayerWavePainter(
                     playerWaveStyle: playerWaveStyle,
                     waveformData: _waveformData,
-                    animValue: _growAnimationProgress,
                     totalBackDistance: _totalBackDistance,
                     dragOffset: _dragOffset,
                     audioProgress: _audioProgress,
@@ -250,16 +227,7 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     );
   }
 
-  void _addWaveformDataFromController() =>
-      _addWaveformData(playerController.waveformData);
-
-  void _updateGrowAnimationProgress() {
-    if (mounted) {
-      setState(() {
-        _growAnimationProgress = _growAnimation.value;
-      });
-    }
-  }
+  void _addWaveformDataFromController() => _addWaveformData(playerController.waveformData);
 
   void _handleOnDragEnd(DragEndDetails dragEndDetails) {
     _isScrolled = false;
@@ -336,8 +304,7 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     }
 
     // right to left
-    else if (currentPosition + totalWaveWidth + details.delta.dx >
-            (-spacing / 2) &&
+    else if (currentPosition + totalWaveWidth + details.delta.dx > (-spacing / 2) &&
         _scrollDirection < 0) {
       _dragOffset += details.delta;
     }
@@ -368,15 +335,13 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
     padding = widget.padding;
     decoration = widget.decoration;
     backgroundColor = widget.backgroundColor;
-    animationDuration = widget.animationDuration;
-    animationCurve = widget.animationCurve;
     clipBehavior = widget.clipBehavior;
   }
 
   /// calculates seek progress
   void _updatePlayerPercent() {
     if (playerController.maxDuration == 0) return;
-        if (_seekProgress.value == playerController.maxDuration) {
+    if (_seekProgress.value == playerController.maxDuration) {
       _audioProgress = 0;
     } else {
       _audioProgress = _seekProgress.value / playerController.maxDuration;
@@ -406,5 +371,9 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms>
         setState(() {});
       }
     });
+  }
+
+  _initProgress() {
+    _audioProgress = widget.initDuration / playerController.maxDuration;
   }
 }
