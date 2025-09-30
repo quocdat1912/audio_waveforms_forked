@@ -121,7 +121,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms> {
   late Clip? clipBehavior;
   late StreamSubscription<int> onCurrentDurationSubscription;
   late StreamSubscription<void> onCompletionSubscription;
-  StreamSubscription<List<double>>? onCurrentExtractedWaveformData;
 
   double get spacing => widget.playerWaveStyle.spacing;
 
@@ -145,27 +144,12 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms> {
       _seekProgress.value = playerController.maxDuration;
       _updatePlayerPercent();
     });
-    if (widget.waveformData.isNotEmpty) {
-      _addWaveformData(widget.waveformData);
-    } else {
-      if (playerController.waveformData.isNotEmpty) {
-        _addWaveformData(playerController.waveformData);
-      }
-      if (!widget.continuousWaveform) {
-        playerController.addListener(_addWaveformDataFromController);
-      } else {
-        onCurrentExtractedWaveformData =
-            playerController.onCurrentExtractedWaveformData.listen(_addWaveformData);
-      }
-    }
   }
 
   @override
   void dispose() {
     onCurrentDurationSubscription.cancel();
-    onCurrentExtractedWaveformData?.cancel();
     onCompletionSubscription.cancel();
-    playerController.removeListener(_addWaveformDataFromController);
     super.dispose();
   }
 
@@ -182,7 +166,8 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms> {
   double scrollScale = 1.0;
   double _proportion = 0.0;
 
-  final List<double> _waveformData = [];
+  List<double> get _waveformData =>
+      widget.waveformData.isEmpty ? playerController.waveformData : widget.waveformData;
 
   @override
   Widget build(BuildContext context) {
@@ -227,8 +212,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms> {
     );
   }
 
-  void _addWaveformDataFromController() => _addWaveformData(playerController.waveformData);
-
   void _handleOnDragEnd(DragEndDetails dragEndDetails) {
     _isScrolled = false;
     scrollScale = 1.0;
@@ -240,13 +223,6 @@ class _AudioFileWaveformsState extends State<AudioFileWaveforms> {
       );
     }
     widget.onDragEnd?.call(dragEndDetails);
-  }
-
-  void _addWaveformData(List<double> data) {
-    _waveformData
-      ..clear()
-      ..addAll(data);
-    if (mounted) setState(() {});
   }
 
   void _handleDragGestures(DragUpdateDetails details) {
